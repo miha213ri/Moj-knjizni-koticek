@@ -1,0 +1,52 @@
+# Zasebne nastavitve in skrivnosti
+.env
+.env.*
+!.env.example
+
+# Python prevodi in predpomnilniki
+__pycache__/
+*.py[cod]
+*.class
+*.so
+
+# Podatkovne baze in lokalni podatki
+*.db
+*.sqlite
+*.sqlite3
+local_library.db
+storage/
+data/
+data/backups/
+data/images/
+
+# Dnevniki in začasne datoteke
+*.log
+stderr.log
+tmp/
+*.tmp
+*.bak
+
+# Virtualna okolja
+.venv/
+venv/
+ENV/
+env/
+
+# Arhivi in varnostne kopije
+*.zip
+*.tar
+*.gz
+*.json.gz
+
+# IDE in operacijski sistem
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Distribucija in paketi
+build/
+dist/
+*.egg-info/

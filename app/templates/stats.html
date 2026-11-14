@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><h1>Statistika knjižnice</h1><p>Osnovni pregled zbirke, izposoj in branja.</p></div></div>
+<div class="stats-grid"><div class="stat"><small>Vsi fizični izvodi</small><strong>{{ total }}</strong></div><div class="stat"><small>Na voljo</small><strong>{{ available }}</strong></div><div class="stat"><small>Posojenih</small><strong>{{ on_loan }}</strong></div><div class="stat"><small>Zamujene izposoje</small><strong class="{{ 'number-alert' if overdue else '' }}">{{ overdue }}</strong></div><div class="stat"><small>Zaključenih branj</small><strong>{{ read_count }}</strong></div><div class="stat"><small>Knjižnih želja</small><strong>{{ wish_count }}</strong></div></div>
+<div class="panel"><h2>Knjige po žanrih</h2>{% for name, count in genres %}<div class="bar-row"><span>{{ name }}</span><div class="bar"><i style="width:{{ (count / (total or 1) * 100)|round }}%"></i></div><b>{{ count }}</b></div>{% else %}<p>Za zdaj še ni podatkov o žanrih.</p>{% endfor %}</div>
+{% endblock %}

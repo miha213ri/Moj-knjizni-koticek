@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><h1>{% if book %}Uredi knjigo{% else %}Dodaj knjigo{% endif %}</h1><p>Vnesi podatke o fizičnem izvodu. Več izvodov iste knjige vodiš kot ločene zapise.</p></div><a class="btn light" href="{% if book %}/books/{{ book.id }}{% else %}/books{% endif %}">NAZAJ</a></div>
+{% if request.query_params.get('cover_saved') %}<div class="notice">Naslovnica je bila shranjena. Na voljo je tudi brez internetne povezave.</div>{% endif %}
+{% if request.query_params.get('cover_error') %}<div class="notice">Naslovnice ni bilo mogoče prenesti. Izberi drug rezultat ali naloži sliko z računalnika.</div>{% endif %}
+{% if request.query_params.get('duplicate') %}<div class="notice duplicate-notice">V domači knjižnici že obstaja izvod s tem ISBN. Preveri, ali gre za isti naslov. Ob potrditvi ga lahko vseeno dodaš kot nov fizični izvod.</div>{% endif %}
+<form id="book-entry-form" data-draft-key="{{ 'book-edit-' ~ book.id if book else 'book-new' }}" method="post" action="/books/save" enctype="multipart/form-data" class="panel form-grid">
+<input type="hidden" name="id" value="{{ book.id if book else 0 }}"><input type="hidden" name="allow_duplicate" value="0"><input type="hidden" name="location_id" value="{{ book.location_id if book else current_location_id }}">
+<section class="full"><h2>Osnovni podatki</h2></section>
+<label>Naslov *<input name="title" required value="{{ book.title if book else '' }}"></label>
+<label>Podnaslov<input name="subtitle" value="{{ book.subtitle if book and book.subtitle else '' }}"></label>
+<label>Avtorji <small>(ločeni z vejico)</small><input name="authors" value="{{ book.authors|map(attribute='author.name')|join(', ') if book else '' }}"></label>
+<label>Leto izdaje<input name="year" type="number" min="1000" max="2100" value="{{ book.year if book and book.year else '' }}"></label>
+<label>Založba<input name="publisher" value="{{ book.publisher if book and book.publisher else '' }}"></label>
+<label>Kraj izdaje<input name="publication_place" value="{{ book.publication_place if book and book.publication_place else '' }}"></label>
+<label>Jezik<input name="language" placeholder="npr. sl, en, de" value="{{ book.language if book and book.language else '' }}"></label>
+<label>Inventarna številka<input name="inventory_no" value="{{ book.inventory_no if book else '' }}" placeholder="Samodejno, če pustiš prazno"></label>
+<label>Žanr<select name="genre"><option value="">— brez žanra —</option>{% for x in genres %}<option value="{{ x.name }}" {% if book and book.genre_id == x.id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
+<label>Zbirka<select name="collection"><option value="">— brez zbirke —</option>{% for x in collections %}<option value="{{ x.name }}" {% if book and book.collection_id == x.id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
+<label>ISBN 1, 2, ... <small>(ločeni z vejico; vezaji niso potrebni)</small><input name="isbns" value="{{ book.isbns|map(attribute='isbn')|join(', ') if book else '' }}"></label>
+<label>Posebna izdaja<select name="special_edition"><option value="">Ne</option><option value="1" {% if book and book.special_edition %}selected{% endif %}>Da</option></select></label>
+<section class="full"><h2>Naslovnica</h2><p class="muted">Slika se optimizira in shrani neposredno v MariaDB; ne ustvarja ločene datoteke (inode).</p></section>
+<div class="cover-upload full">
+{% if book and book.cover_path %}<img class="form-cover-preview" src="{{ book.cover_path }}" alt="Trenutna naslovnica">{% else %}<img class="form-cover-preview" src="/static/no_cover.svg" alt="Knjiga brez naslovnice">{% endif %}
+<div class="stack cover-controls"><label>Naloži sliko iz računalnika<input type="file" name="cover_file" accept="image/jpeg,image/png,image/webp"></label>
+<label>Ali prilepi povezavo do Open Library izdaje ali slike naslovnice<input type="url" name="cover_source_url" placeholder="https://openlibrary.org/books/OL10459823M/..."></label>
+<small class="muted">Program bo pri povezavi Open Library sam poiskal ID naslovnice in jo shranil v podatkovno bazo.</small>
+<a class="btn secondary" id="lookup-from-form" href="/lookup" data-target-book-id="{{ book.id if book else 0 }}">POIŠČI PODATKE IN NASLOVNICO PO ISBN / NASLOVU</a><small class="muted">Vnos bo začasno shranjen, zato ga ob vrnitvi ne bo treba vnašati znova.</small></div></div>
+<section class="full"><h2>Lokacija in stanje izvoda</h2><p class="muted">Knjižnica: <b>{{ book.location.name if book and book.location else current_location.name if current_location else '—' }}</b>. Polica je znotraj omare, omara pa znotraj sobe.</p></section>
+<label>Soba<select id="room-select" name="room_id"><option value="0">— ni določena —</option>{% for x in rooms %}<option value="{{ x.id }}" {% if book and book.room_id == x.id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
+<label>Omara<select id="cabinet-select" name="cabinet_id"><option value="0">— ni določena —</option>{% for x in cabinets %}<option value="{{ x.id }}" data-room-id="{{ x.room_id }}" {% if book and book.cabinet_id == x.id %}selected{% endif %}>{{ x.name }} ({{ x.room.name }})</option>{% endfor %}</select></label>
+<label>Polica<select id="shelf-select" name="shelf_id"><option value="0">— ni določena —</option>{% for x in shelves %}<option value="{{ x.id }}" data-cabinet-id="{{ x.cabinet_id }}" {% if book and book.shelf_id == x.id %}selected{% endif %}>{{ x.name }} ({{ x.cabinet.name }})</option>{% endfor %}</select></label>
+<label>Stanje knjige<select name="condition"><option value="">— ni določeno —</option>{% for x in ["Odlično","Zelo dobro","Dobro","Poškodovana","Potrebna popravila"] %}<option {% if book and book.condition==x %}selected{% endif %}>{{ x }}</option>{% endfor %}</select></label>
+<label>Datum pridobitve<input type="date" name="acquisition_date" value="{{ book.acquisition_date.isoformat() if book and book.acquisition_date else '' }}"></label>
+<label>Nabavna cena<input name="purchase_price" value="{{ book.purchase_price if book and book.purchase_price else '' }}" placeholder="npr. 19,90 €"></label>
+<label>Vir pridobitve<input name="acquisition_source" value="{{ book.acquisition_source if book and book.acquisition_source else '' }}" placeholder="Nakup, darilo ..."></label>
+<section class="full"><h2>Vsebina knjige</h2></section>
+<label class="full">Povzetek<textarea name="summary" rows="4">{{ book.summary if book and book.summary else '' }}</textarea></label>
+<label class="full">Posebna opomba<textarea name="special_note" rows="3">{{ book.special_note if book and book.special_note else '' }}</textarea></label>
+<div class="full actions"><button class="btn primary">SHRANI</button><a class="btn light" href="{% if book %}/books/{{ book.id }}{% else %}/books{% endif %}">PREKLIČI</a></div>
+</form>{% endblock %}

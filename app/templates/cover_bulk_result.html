@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Rezultat množičnega uvoza naslovnic</h1><p>Vsaka slika je bila preverjena po natančnem pravilu ujemanja.</p></div>
+  <a class="btn light" href="/settings">NAZAJ V NASTAVITVE</a>
+</div>
+<div class="cover-result-summary">
+  <div><strong>{{ summary.added }}</strong><small>Nove naslovnice</small></div>
+  <div><strong>{{ summary.replaced }}</strong><small>Zamenjane</small></div>
+  <div><strong>{{ summary.existing }}</strong><small>Obstoječe ohranjene</small></div>
+  <div><strong>{{ summary.unmatched }}</strong><small>Brez zadetka</small></div>
+  <div><strong>{{ summary.ambiguous }}</strong><small>Dvoumna ujemanja</small></div>
+  <div><strong>{{ summary.invalid }}</strong><small>Napake / neveljavne</small></div>
+</div>
+<div class="panel">
+  <p>Obdelanih datotek: <b>{{ total }}</b>. Datoteke brez natančnega ujemanja ali z dvoumnim ujemanjem niso bile pripete.</p>
+  <div class="table-wrap">
+    <table class="cover-result-table">
+      <thead><tr><th>Datoteka</th><th>Najdena knjiga</th><th>Inventarna številka</th><th>Rezultat</th><th>Podrobnosti</th></tr></thead>
+      <tbody>
+      {% for item in results %}
+        <tr>
+          <td>{{ item.filename }}</td><td>{{ item.book_title }}</td><td>{{ item.inventory_no }}</td>
+          <td>{% if item.status in ['Dodana', 'Zamenjana'] %}<span class="result-ok">{{ item.status }}</span>{% elif item.status in ['Ni zadetka', 'Dvoumno', 'Že ima naslovnico'] %}<span class="result-warn">{{ item.status }}</span>{% else %}<span class="result-error">{{ item.status }}</span>{% endif %}</td>
+          <td>{{ item.message }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

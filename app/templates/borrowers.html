@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><h1>Zunanji izposojevalci</h1><p>Podatki o osebah in njihovih izposojah. Zapisi oseb z zgodovino izposoj se ne brišejo, da ostane zgodovina ohranjena.</p></div></div>
+{% if request.query_params.get('notice') %}<div class="notice">{{ request.query_params.get('notice') }}</div>{% endif %}
+<form class="searchbar" method="get"><input name="q" value="{{ q }}" placeholder="Išči po imenu, priimku, naslovu ali kontaktu"><input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="direction" value="{{ direction }}"><button class="btn dark">IŠČI</button><a class="btn light" href="/borrowers">POČISTI</a></form>
+<form method="post" action="/borrowers/save" class="panel form-grid compact">
+<h2 class="full">Dodaj izposojevalca</h2><label>Ime *<input name="first_name" required></label><label>Priimek *<input name="last_name" required></label><label>Naslov<input name="address"></label><label>Kontakt<input name="contact" placeholder="Telefon ali e-pošta"></label><label class="full">Opomba<textarea name="note"></textarea></label><div class="full"><button class="btn primary">DODAJ OSEBO</button></div>
+</form>
+<div class="panel table-wrap"><table><thead><tr>
+{% for key,label in [('first_name','Ime'),('last_name','Priimek'),('address','Naslov'),('contact','Kontakt'),('note','Opomba')] %}<th><a class="sort-link" href="/borrowers?q={{ q|urlencode }}&sort={{ key }}&direction={{ 'desc' if sort==key and direction=='asc' else 'asc' }}">{{ label }}{% if sort==key %} {{ '↓' if direction=='desc' else '↑' }}{% endif %}</a></th>{% endfor %}<th>Upravljanje</th></tr></thead><tbody>
+{% for b in borrowers %}<tr><td>{{ b.first_name }}</td><td>{{ b.last_name }}</td><td>{{ b.address or "—" }}</td><td>{{ b.contact or "—" }}</td><td>{{ b.note or "—" }}</td><td><details><summary>UREDI</summary><form method="post" action="/borrowers/{{ b.id }}/save" class="row-edit"><label>Ime<input name="first_name" required value="{{ b.first_name }}"></label><label>Priimek<input name="last_name" required value="{{ b.last_name }}"></label><label>Naslov<input name="address" value="{{ b.address or '' }}"></label><label>Kontakt<input name="contact" value="{{ b.contact or '' }}"></label><label>Opomba<textarea name="note">{{ b.note or '' }}</textarea></label><button class="btn secondary">SHRANI SPREMEMBE</button></form><form method="post" action="/borrowers/{{ b.id }}/delete" onsubmit="return confirm('Res izbrišem to osebo? Zgodovine izposoj ne brišem.');"><button class="btn danger small-btn">BRIŠI</button></form></details></td></tr>
+{% else %}<tr><td colspan="6">Ni vnesenih oseb, ki ustrezajo iskanju.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

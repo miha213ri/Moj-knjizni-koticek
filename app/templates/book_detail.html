@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block content %}
+<div id="clear-book-draft" data-key="book-edit-{{ book.id }}" data-new-key="book-new" hidden></div>
+{% if request.query_params.get('delete_error') == 'database' %}
+<div class="notice" role="alert">Knjige ni bilo mogoče izbrisati zaradi napake v podatkovni bazi. Brisanje je bilo v celoti razveljavljeno. Podrobnosti napake so zapisane v strežniškem dnevniku.</div>
+{% endif %}
+<div class="page-head"><div><h1>Podrobnosti knjige</h1><p>Inventarna številka: {{ book.inventory_no }} · Lokacija: <b>{{ book.location.name if book.location else '—' }}</b></p></div><div class="actions">{% if can_manage_book %}<a class="btn primary" href="/books/{{ book.id }}/edit">UREDI</a>{% endif %}<a class="btn light" href="/books">NAZAJ</a></div></div>
+<div class="panel detail">
+<div class="detail-cover">{% if book.cover_path %}<img src="{{ book.cover_path }}" alt="Naslovnica knjige">{% else %}<img src="/static/no_cover.svg" alt="Brez naslovnice">{% endif %}</div>
+<div><h2>{{ book.title }}</h2><p class="lead">{{ book.subtitle or "" }}</p><p><b>Avtor:</b> {{ book.authors|map(attribute="author.name")|join(", ") or "—" }}</p>
+<p><b>Leto:</b> {{ book.year or "—" }} · <b>Založba:</b> {{ book.publisher or "—" }}</p>
+<p><b>Žanr:</b> {{ book.genre.name if book.genre else "—" }} · <b>Zbirka:</b> {{ book.collection.name if book.collection else "—" }}</p>
+<p><b>ISBN:</b> {{ book.isbns|map(attribute="isbn")|join(", ") or "—" }}</p>
+<p><b>Knjižnica:</b> {{ book.location.name if book.location else "—" }}</p><p><b>Lokacija:</b> {{ book.room.name if book.room else "—" }} / {{ book.cabinet.name if book.cabinet else "—" }} / {{ book.shelf.name if book.shelf else "—" }}</p>
+<p><b>Stanje:</b> {{ book.condition or "—" }} · <b>Posebna izdaja:</b> {{ "Da" if book.special_edition else "Ne" }}</p>
+<p><b>Status:</b> {% if loan %}{% if loan.due_date and loan.due_date < today %}<span class="status overdue">ZAMUJENA IZPOSOJA</span>{% else %}<span class="status borrowed">POSOJENA</span>{% endif %}{% if can_manage_book %} – {{ loan.borrower.first_name }} {{ loan.borrower.last_name }}{% endif %}{% else %}<span class="status available">NA VOLJO</span>{% endif %}</p>
+{% if loan %}<p><b>Datum izposoje:</b> {{ loan.loan_date }} · <b>Rok vrnitve:</b> {{ loan.due_date or "ni določen" }}</p>{% if can_manage_book %}<form method="post" action="/loans/{{ loan.id }}/return"><button class="btn success">KNJIGA JE VRNJENA</button></form>{% endif %}{% endif %}
+</div></div>
+<div class="panel"><h2>Povzetek</h2><p class="long-text">{{ book.summary or "Povzetek še ni vpisan." }}</p><h2>Posebna opomba</h2><p class="long-text">{{ book.special_note or "Brez posebne opombe." }}</p></div>
+{% if not loan and can_manage_book %}<div class="panel"><h2>Posodi knjigo</h2>
+{% if borrowers %}<form method="post" action="/books/{{ book.id }}/loan" class="inline-form loan-form"><select name="borrower_id" required><option value="">Izberi izposojevalca</option>{% for b in borrowers %}<option value="{{ b.id }}">{{ b.last_name }}, {{ b.first_name }}</option>{% endfor %}</select><label class="due-date-field">Rok vrnitve<input type="date" name="due_date" value="{{ default_due_date }}" min="{{ today.isoformat() }}" required></label><button class="btn primary">POSODI</button></form><p class="muted">Privzeti rok vrnitve je 30 dni od datuma izposoje. Po potrebi ga lahko spremeniš.</p>
+{% else %}<p>Najprej dodaj osebo. To lahko narediš tukaj, ne da bi zapustil knjigo.</p>{% endif %}
+<details class="quick-add"><summary>＋ Dodaj novega izposojevalca</summary><form method="post" action="/borrowers/save" class="form-grid compact"><input type="hidden" name="return_to" value="/books/{{ book.id }}"><label>Ime *<input name="first_name" required></label><label>Priimek *<input name="last_name" required></label><label>Naslov<input name="address"></label><label>Kontakt<input name="contact" placeholder="Telefon ali e-pošta"></label><label class="full">Opomba<textarea name="note"></textarea></label><div class="full"><button class="btn secondary">SHRANI OSEBO</button></div></form></details>
+<p class="muted">Po shranjevanju se vrneš na to knjigo, nova oseba pa bo že na seznamu za izposojo.</p></div>{% endif %}
+{% if can_manage_book %}<div class="panel"><h2>Zgodovina izposoj</h2>{% for x in book.loans|sort(attribute='id', reverse=true) %}<p>{{ x.borrower.first_name }} {{ x.borrower.last_name }} · {{ x.loan_date }} · {% if x.returned_date %}Vrnjena {{ x.returned_date }}{% else %}Še ni vrnjena{% endif %}{% if x.due_date %} · Rok: {{ x.due_date }}{% endif %}</p>{% else %}<p class="muted">Še ni zgodovine izposoj.</p>{% endfor %}</div>{% endif %}
+{% if can_manage_book %}<div class="panel danger-zone"><form method="post" action="/books/{{ book.id }}/delete" onsubmit="return confirm('Ali res želiš izbrisati ta fizični izvod knjige in njegovo zgodovino?');"><button class="btn danger">BRIŠI IZVOD</button></form><p class="muted">Brisanje izvoda odstrani tudi njegovo zgodovino izposoj in branj.</p></div>{% endif %}
+{% endblock %}

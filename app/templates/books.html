@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Moja knjižnica</h1><p>Pregled vseh fizičnih izvodov knjig.</p></div>
+  <a class="btn primary" href="/books/new">＋ DODAJ KNJIGO</a>
+</div>
+
+<div class="catalog-toolbar">
+  <div class="view-switch" aria-label="Način prikaza knjig">
+    <a class="btn {% if view == 'cards' %}view-active{% else %}light{% endif %}" href="{{ view_urls.cards }}" aria-pressed="{{ 'true' if view == 'cards' else 'false' }}">▦ KARTICE</a>
+    <a class="btn {% if view == 'list' %}view-active{% else %}light{% endif %}" href="{{ view_urls.list }}" aria-pressed="{{ 'true' if view == 'list' else 'false' }}">☷ SEZNAM</a>
+  </div>
+  <a class="btn success" href="{{ export_url }}">↓ IZVOZI V EXCEL</a>
+</div>
+
+<form class="searchbar" method="get" action="/books">
+  <input type="hidden" name="view" value="{{ view }}">
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <input type="hidden" name="direction" value="{{ direction }}">
+  <input name="q" value="{{ q }}" placeholder="Išči po naslovu, podnaslovu, avtorju, ISBN, žanru, lokaciji, kraju izdaje, zbirki, povzetku ali opombi">
+  <button class="btn dark">IŠČI</button>
+  <a class="btn light" href="/books?view={{ view }}">POČISTI</a>
+  <a class="btn secondary" href="/lookup">SPLETNO ISBN ISKANJE</a>
+</form>
+<div class="catalog-meta"><span>Prikazanih knjig: <b>{{ result_count }}</b></span>{% if q %}<span>Iskalni niz: <b>{{ q }}</b></span>{% endif %}</div>
+
+{% if view == 'list' %}
+<div class="table-wrap catalog-table">
+  <table>
+    <thead><tr>
+      <th><a class="sort-link" href="{{ sort_urls.inventory_no }}">Inventarna št. {% if sort == 'inventory_no' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+      <th><a class="sort-link" href="{{ sort_urls.title }}">Naslov {% if sort == 'title' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+      <th><a class="sort-link" href="{{ sort_urls.authors }}">Avtorji {% if sort == 'authors' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+      <th><a class="sort-link" href="{{ sort_urls.year }}">Leto {% if sort == 'year' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+      <th><a class="sort-link" href="{{ sort_urls.isbns }}">ISBN {% if sort == 'isbns' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+      <th><a class="sort-link" href="{{ sort_urls.genre }}">Žanr {% if sort == 'genre' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+      <th><a class="sort-link" href="{{ sort_urls.collection }}">Zbirka {% if sort == 'collection' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+      <th><a class="sort-link" href="{{ sort_urls.location }}">Lokacija {% if sort == 'location' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+      <th><a class="sort-link" href="{{ sort_urls.condition }}">Stanje {% if sort == 'condition' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+      <th><a class="sort-link" href="{{ sort_urls.status }}">Status {% if sort == 'status' %}{{ '↑' if direction == 'asc' else '↓' }}{% endif %}</a></th>
+    </tr></thead>
+    <tbody>
+    {% for item in rows %}{% set b = item.book %}
+      <tr>
+        <td class="nowrap">{{ b.inventory_no }}</td>
+        <td><a class="book-table-title" href="/books/{{ b.id }}">{{ b.title }}</a>{% if b.subtitle %}<small class="table-subtitle">{{ b.subtitle }}</small>{% endif %}</td>
+        <td>{{ item.authors or '—' }}</td>
+        <td>{{ b.year or '—' }}</td>
+        <td>{{ item.isbns or '—' }}</td>
+        <td>{{ item.genre_name or '—' }}</td>
+        <td>{{ item.collection_name or '—' }}</td>
+        <td>{{ item.location_path }}</td>
+        <td>{{ b.condition or '—' }}</td>
+        <td><span class="status {% if item.status == 'NA VOLJO' %}available{% elif item.status == 'ZAMUJA' %}overdue{% else %}borrowed{% endif %}">{{ item.status }}</span></td>
+      </tr>
+    {% else %}<tr><td colspan="10" class="empty-cell">Ni zadetkov. Spremeni iskalni niz ali počisti iskanje.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="book-grid">
+{% for item in rows %}{% set b=item.book %}{% set loan=item.loan %}
+<a class="book-card" href="/books/{{ b.id }}" title="{{ b.title }} · {{ item.authors }} · {{ b.inventory_no }}">
+  <div class="cover">{% if b.cover_path %}<img src="{{ b.cover_path }}" alt="Naslovnica">{% else %}<img src="/static/no_cover.svg" alt="Brez naslovnice">{% endif %}</div>
+  <div class="book-info"><h3>{{ b.title }}</h3><p>{{ item.authors or "Avtor ni vpisan" }}</p>
+  <small><b>{{ b.location.name if b.location else 'Lokacija ni določena' }}</b> · {{ b.room.name if b.room else "Prostor ni določen" }}{% if b.cabinet %} · {{ b.cabinet.name }}{% endif %}{% if b.shelf %} · {{ b.shelf.name }}{% endif %}</small>
+  {% if item.status == 'ZAMUJA' %}<span class="status overdue">ZAMUJA</span>{% elif loan %}<span class="status borrowed">POSOJENA</span>{% else %}<span class="status available">NA VOLJO</span>{% endif %}
+  <small class="muted">Inventarna št.: {{ b.inventory_no }}</small></div>
+</a>
+{% else %}<div class="empty">Ni zadetkov. Spremeni iskalni niz ali počisti iskanje.</div>{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

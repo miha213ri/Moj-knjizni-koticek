@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 520" role="img" aria-labelledby="title desc">
+  <title id="title">Brez naslovnice</title>
+  <desc id="desc">Nadomestna ilustracija knjige brez fotografije naslovnice.</desc>
+  <rect width="360" height="520" rx="20" fill="#edf2ef"/>
+  <rect x="78" y="70" width="204" height="300" rx="13" fill="#ffffff" stroke="#b7c8bf" stroke-width="8"/>
+  <path d="M180 70v300" stroke="#d3dfd8" stroke-width="8"/>
+  <path d="M98 115h62M98 135h62M200 115h62M200 135h62" stroke="#b7c8bf" stroke-width="7" stroke-linecap="round"/>
+  <path d="M116 210c18-24 42-29 64-15 22-14 46-9 64 15v68c-18-14-42-17-64-5-22-12-46-9-64 5z" fill="#e6f0eb" stroke="#6f967f" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M180 195v82" stroke="#6f967f" stroke-width="6"/>
+  <text x="180" y="430" text-anchor="middle" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#587564">BREZ NASLOVNICE</text>
+  <text x="180" y="462" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="#7b8e83">Slika še ni dodana</text>
+</svg>
