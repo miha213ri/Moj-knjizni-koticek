@@ -4,9 +4,18 @@ import hmac
 import secrets
 
 
-def hash_password(password: str) -> str:
+def validate_password_strength(password: str) -> tuple[bool, str]:
     if len(password) < 12:
-        raise ValueError("Geslo mora vsebovati najmanj 12 znakov.")
+        return False, "Geslo mora vsebovati najmanj 12 znakov."
+    if not any(c.isdigit() or not c.isalnum() for c in password):
+        return False, "Geslo mora vsebovati vsaj eno številko ali poseben znak."
+    return True, ""
+
+
+def hash_password(password: str) -> str:
+    valid, err_msg = validate_password_strength(password)
+    if not valid:
+        raise ValueError(err_msg)
     salt = secrets.token_bytes(16)
     digest = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=2**15, r=8, p=1, dklen=64, maxmem=128 * 1024 * 1024)
     return "scrypt$32768$8$1${}${}".format(

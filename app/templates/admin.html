@@ -1,18 +1,394 @@
-{% extends "base.html" %}{% block content %}
-<div class="page-head"><div><h1>Upravljanje sistema</h1><p>Uporabniški računi, pravice in fizične knjižnice.</p></div></div>
-{% if request.query_params.get('notice') %}<div class="notice">{{ request.query_params.get('notice') }}</div>{% endif %}
-<div class="two-col">
-<section class="panel"><h2>Dodaj lokacijo</h2><form method="post" action="/admin/locations/save" class="stack"><label>Naziv lokacije *<input name="name" placeholder="npr. Knjižnica Rakitna" required></label><label>Opis ali naslov<input name="address"></label><button class="btn primary">DODAJ LOKACIJO</button></form></section>
-<section class="panel"><h2>Dodaj uporabnika</h2><form method="post" action="/admin/users/save" class="stack"><label>Uporabniško ime *<input name="username" autocomplete="off" required></label><label>Prikazno ime *<input name="display_name" required></label><label>Začetno geslo *<input name="password" type="password" minlength="12" required><small class="muted">Najmanj 12 znakov. Geslo lahko administrator pozneje ponastavi.</small></label><label>Vloga<select name="role"><option value="USER">Običajni uporabnik</option><option value="ADMIN">Administrator</option></select></label><fieldset><legend>Dovoljene lokacije</legend>{% for loc in locations if loc.active %}<label class="check-label"><input type="checkbox" name="location_ids" value="{{ loc.id }}"> {{ loc.name }}</label>{% endfor %}</fieldset><button class="btn primary">USTVARI UPORABNIKA</button></form></section>
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Upravljanje sistema</h1>
+    <p>Nadzorna plošča, uporabniški računi, varnostne vloge, lokacije in revizijska sled.</p>
+  </div>
 </div>
-<section class="panel"><h2>Lokacije</h2><div class="table-wrap"><table><thead><tr><th>Naziv</th><th>Opis</th><th>Stanje / urejanje</th></tr></thead><tbody>
-{% for loc in locations %}<tr><td><b>{{ loc.name }}</b></td><td>{{ loc.address or '—' }}</td><td><details><summary>UREDI</summary><form method="post" action="/admin/locations/{{ loc.id }}/save" class="row-edit"><label>Naziv<input name="name" value="{{ loc.name }}" required></label><label>Opis ali naslov<input name="address" value="{{ loc.address or '' }}"></label><label>Aktivna<select name="active"><option value="1" {% if loc.active %}selected{% endif %}>Da</option><option value="0" {% if not loc.active %}selected{% endif %}>Ne</option></select></label><button class="btn secondary">SHRANI</button></form></details></td></tr>{% else %}<tr><td colspan="3">Ni lokacij.</td></tr>{% endfor %}
-</tbody></table></div></section>
-<section class="panel"><h2>Uporabniki</h2><div class="table-wrap"><table><thead><tr><th>Račun</th><th>Vloga</th><th>Dovoljene lokacije</th><th>Stanje</th><th>Dejanja</th></tr></thead><tbody>
-{% for u in users %}<tr><td><b>{{ u.display_name }}</b><br><small>{{ u.username }}</small></td><td>{{ 'Administrator' if u.role=='ADMIN' else 'Običajni uporabnik' }}</td><td>{% if u.role=='ADMIN' %}Vse aktivne lokacije{% else %}{{ u.locations|map(attribute='location.name')|join(', ') }}{% endif %}</td><td>{{ 'Aktiven' if u.active else 'Deaktiviran' }}</td><td><details><summary>UPRAVLJAJ</summary>
-{% if u.role=='USER' %}<form method="post" action="/admin/users/{{ u.id }}/locations" class="stack"><b>Dodeli lokacije</b>{% for loc in locations if loc.active %}<label class="check-label"><input type="checkbox" name="location_ids" value="{{ loc.id }}" {% if loc.id in (u.locations|map(attribute='location_id')|list) %}checked{% endif %}> {{ loc.name }}</label>{% endfor %}<button class="btn secondary small-btn">SHRANI DOSTOPE</button></form>{% endif %}
-<form method="post" action="/admin/users/{{ u.id }}/password" class="row-edit"><label>Novo geslo<input name="password" type="password" minlength="12" required></label><button class="btn secondary small-btn">PONASTAVI GESLO</button></form>
-<form method="post" action="/admin/users/{{ u.id }}/toggle"><button class="btn {% if u.active %}danger{% else %}success{% endif %} small-btn">{{ 'DEAKTIVIRAJ' if u.active else 'AKTIVIRAJ' }}</button></form>
-</details></td></tr>{% else %}<tr><td colspan="5">Ni uporabnikov.</td></tr>{% endfor %}
-</tbody></table></div></section>
+
+{% if notice or request.query_params.get('notice') %}
+  <div class="notice success-notice">{{ notice or request.query_params.get('notice') }}</div>
+{% endif %}
+{% if error or request.query_params.get('error') %}
+  <div class="notice error-notice">{{ error or request.query_params.get('error') }}</div>
+{% endif %}
+
+<!-- Statistični pregled -->
+<div class="stats-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+  <div class="stat-card" style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:15px; text-align:center;">
+    <div style="font-size:2rem; font-weight:bold; color:#1e3a8a;">{{ stats.books }}</div>
+    <div style="color:#64748b; font-size:0.9rem;">📚 Vseh fizičnih knjig</div>
+  </div>
+  <div class="stat-card" style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:15px; text-align:center;">
+    <div style="font-size:2rem; font-weight:bold; color:#d97706;">{{ stats.loans }}</div>
+    <div style="color:#64748b; font-size:0.9rem;">📤 Aktivnih izposoj</div>
+  </div>
+  <div class="stat-card" style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:15px; text-align:center;">
+    <div style="font-size:2rem; font-weight:bold; color:#059669;">{{ stats.users }}</div>
+    <div style="color:#64748b; font-size:0.9rem;">👥 Uporabniških računov</div>
+  </div>
+  <div class="stat-card" style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:15px; text-align:center;">
+    <div style="font-size:2rem; font-weight:bold; color:#7c3aed;">{{ stats.locations }}</div>
+    <div style="color:#64748b; font-size:0.9rem;">🏢 Fizičnih knjižnic / lokacij</div>
+  </div>
+</div>
+
+<div class="two-col">
+  <!-- Dodaj lokacijo -->
+  <section class="panel">
+    <h2>Dodaj knjižnico / lokacijo</h2>
+    <form method="post" action="/admin/locations/save" class="stack">
+      <label>Naziv lokacije *
+        <input name="name" placeholder="npr. Knjižnica Rakitna" required>
+      </label>
+      <label>Opis ali naslov
+        <input name="address" placeholder="npr. Domača hiša, 1. nadstropje">
+      </label>
+      <button class="btn primary">DODAJ LOKACIJO</button>
+    </form>
+  </section>
+
+  <!-- Dodaj uporabnika -->
+  <section class="panel">
+    <h2>Dodaj novega uporabnika</h2>
+    <form method="post" action="/admin/users/save" class="stack">
+      <label>Uporabniško ime *
+        <input name="username" autocomplete="off" placeholder="npr. ana_novak" required>
+      </label>
+      <label>Prikazno ime *
+        <input name="display_name" placeholder="npr. Ana Novak" required>
+      </label>
+      <label>E-poštni naslov
+        <input type="email" name="email" placeholder="npr. ana@primer.si">
+      </label>
+      <label>Začetno geslo *
+        <input name="password" type="password" minlength="12" placeholder="••••••••••••" required>
+        <small class="muted">Najmanj 12 znakov.</small>
+      </label>
+      <label>Vloga uporabnika
+        <select name="role">
+          <option value="USER">Običajni uporabnik (Katalog, izposoje, bralni dnevnik)</option>
+          <option value="EDITOR">Urednik knjižnice (Vnos in urejanje knjig v dodeljenih lokacijah)</option>
+          <option value="ADMIN">Administrator (Popoln nadzor nad sistemom)</option>
+          <option value="GUEST">Gost (Samo pregledovanje kataloga)</option>
+        </select>
+      </label>
+      <fieldset>
+        <legend>Dodeljene lokacije</legend>
+        {% for loc in locations if loc.active %}
+          <label class="check-label">
+            <input type="checkbox" name="location_ids" value="{{ loc.id }}"> {{ loc.name }}
+          </label>
+        {% endfor %}
+      </fieldset>
+      <label class="check-label" style="margin: 6px 0 10px;">
+        <input type="checkbox" name="send_credentials" value="1" checked>
+        <span>✉️ Pošlji prijavne podatke (uporabniško ime in geslo) na e-poštni naslov</span>
+      </label>
+      <button class="btn primary">USTVARI UPORABNIKA</button>
+    </form>
+  </section>
+</div>
+
+<!-- Tabela uporabnikov -->
+<section class="panel" style="margin-top:20px;">
+  <h2>Uporabniški računi in pravice</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Uporabnik</th>
+          <th>E-pošta</th>
+          <th>Vloga</th>
+          <th>Dodeljene knjižnice</th>
+          <th>Stanje</th>
+          <th>Dejanja</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <strong>{{ u.display_name }}</strong><br>
+            <small style="color:#64748b;">{{ u.username }}</small>
+          </td>
+          <td>{{ u.email or '—' }}</td>
+          <td>
+            {% if u.role == 'ADMIN' %}<span class="badge badge-admin">Skrbnik</span>
+            {% elif u.role == 'EDITOR' %}<span class="badge badge-editor">Urednik</span>
+            {% elif u.role == 'GUEST' %}<span class="badge badge-guest">Gost</span>
+            {% else %}<span class="badge badge-user">Uporabnik</span>{% endif %}
+          </td>
+          <td>
+            {% if u.role == 'ADMIN' %}
+              <em>Vse lokacije</em>
+            {% else %}
+              {{ u.locations|map(attribute='location.name')|join(', ') or '—' }}
+            {% endif %}
+          </td>
+          <td>
+            {% if not u.active %}
+              <span style="color:#dc2626; font-weight:bold;">Deaktiviran</span>
+            {% elif u.locked_until and u.locked_until > now %}
+              <span style="color:#d97706; font-weight:bold;">Zaklenjen (poskusi)</span>
+            {% else %}
+              <span style="color:#059669; font-weight:bold;">Aktiven</span>
+            {% endif %}
+          </td>
+          <td>
+            <details>
+              <summary>UPRAVLJAJ</summary>
+              <div class="stack" style="margin-top:10px; gap:10px;">
+                <!-- Odklep računa če je zaklenjen -->
+                {% if u.locked_until and u.locked_until > now %}
+                <form method="post" action="/admin/users/{{ u.id }}/unlock">
+                  <button class="btn success small-btn full-width">🔓 ODKLENI RAČUN</button>
+                </form>
+                {% endif %}
+
+                <!-- Sprememba vloge -->
+                <form method="post" action="/admin/users/{{ u.id }}/role" class="row-edit">
+                  <label>Vloga:
+                    <select name="role">
+                      <option value="USER" {% if u.role=='USER' %}selected{% endif %}>Uporabnik</option>
+                      <option value="EDITOR" {% if u.role=='EDITOR' %}selected{% endif %}>Urednik</option>
+                      <option value="ADMIN" {% if u.role=='ADMIN' %}selected{% endif %}>Administrator</option>
+                      <option value="GUEST" {% if u.role=='GUEST' %}selected{% endif %}>Gost</option>
+                    </select>
+                  </label>
+                  <button class="btn secondary small-btn">SPREMENI VLOGO</button>
+                </form>
+
+                <!-- Dodelitev lokacij za ne-admine -->
+                {% if u.role != 'ADMIN' %}
+                <form method="post" action="/admin/users/{{ u.id }}/locations" class="stack">
+                  <strong>Lokacije:</strong>
+                  {% for loc in locations if loc.active %}
+                    <label class="check-label">
+                      <input type="checkbox" name="location_ids" value="{{ loc.id }}" {% if loc.id in (u.locations|map(attribute='location_id')|list) %}checked{% endif %}> {{ loc.name }}
+                    </label>
+                  {% endfor %}
+                  <button class="btn secondary small-btn">SHRANI LOKACIJE</button>
+                </form>
+                {% endif %}
+
+                <!-- Ponastavitev gesla -->
+                <form method="post" action="/admin/users/{{ u.id }}/password" class="row-edit">
+                  <label>Novo geslo:
+                    <input name="password" type="password" minlength="12" placeholder="••••••••••••" required>
+                  </label>
+                  <label class="check-label" style="font-size: 0.85em;">
+                    <input type="checkbox" name="send_credentials" value="1" {% if u.email %}checked{% else %}disabled{% endif %}>
+                    <span>Pošlji novo geslo na e-pošto</span>
+                  </label>
+                  <button class="btn secondary small-btn">PONASTAVI GESLO</button>
+                </form>
+
+                <!-- Aktivacija / Deaktivacija -->
+                {% if u.id != request.state.user.id %}
+                <form method="post" action="/admin/users/{{ u.id }}/toggle">
+                  <button class="btn {% if u.active %}danger{% else %}success{% endif %} small-btn full-width">
+                    {{ 'DEAKTIVIRAJ RAČUN' if u.active else 'AKTIVIRAJ RAČUN' }}
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </details>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">Ni uporabnikov v bazi.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Lokacije in sistemske nastavitve -->
+<div class="two-col" style="margin-top:20px;">
+  <!-- Lokacije -->
+  <section class="panel">
+    <h2>Fizične knjižnice / lokacije</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Naziv</th>
+            <th>Naslov</th>
+            <th>Uredi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for loc in locations %}
+          <tr>
+            <td><strong>{{ loc.name }}</strong></td>
+            <td>{{ loc.address or '—' }}</td>
+            <td>
+              <details>
+                <summary>UREDI</summary>
+                <form method="post" action="/admin/locations/{{ loc.id }}/save" class="stack" style="margin-top:8px;">
+                  <label>Naziv
+                    <input name="name" value="{{ loc.name }}" required>
+                  </label>
+                  <label>Naslov
+                    <input name="address" value="{{ loc.address or '' }}">
+                  </label>
+                  <label>Aktivna
+                    <select name="active">
+                      <option value="1" {% if loc.active %}selected{% endif %}>Da</option>
+                      <option value="0" {% if not loc.active %}selected{% endif %}>Ne</option>
+                    </select>
+                  </label>
+                  <button class="btn secondary small-btn">SHRANI</button>
+                </form>
+              </details>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3">Ni vnesenih lokacij.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Sistemske nastavitve -->
+  <section class="panel">
+    <h2>Sistemske nastavitve</h2>
+    <form method="post" action="/admin/settings/save" class="stack">
+      <label>Naziv aplikacije
+        <input name="app_title" value="{{ settings.app_title }}" required>
+      </label>
+      <label>Javna registracija računov
+        <select name="registration_enabled">
+          <option value="1" {% if settings.registration_enabled == '1' %}selected{% endif %}>Dovoljena (Uporabniki se lahko sami registrirajo)</option>
+          <option value="0" {% if settings.registration_enabled == '0' %}selected{% endif %}>Onemogočena (Račune ustvarja samo administrator)</option>
+        </select>
+      </label>
+      <label>Privzeti rok izposoje (v dneh)
+        <input type="number" name="default_loan_days" value="{{ settings.default_loan_days }}" min="1" max="365" required>
+      </label>
+      <button class="btn primary">SHRANI NASTAVITVE</button>
+    </form>
+  </section>
+</div>
+
+<!-- SMTP E-poštne nastavitve in preizkus povezave -->
+<div class="two-col" style="margin-top:20px;">
+  <!-- SMTP Konfiguracija -->
+  <section class="panel">
+    <h2>Konfiguracija SMTP strežnika za e-pošto</h2>
+    <p style="font-size:0.9em; color:#64748b; margin-top:-8px; margin-bottom:14px;">
+      Nastavitve za pošiljanje prijavnih podatkov, obvestil in ponastavitev gesel.
+    </p>
+    {% if not smtp_active %}
+    <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:10px 12px; margin-bottom:14px; font-size:0.88em; color:#92400e;">
+      ⚠️ <strong>SMTP strežnik še ni konfiguriran.</strong> E-poštna sporočila se trenutno zapisujejo v lokalno datoteko <code>tmp/mail.log</code>.
+    </div>
+    {% else %}
+    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:10px 12px; margin-bottom:14px; font-size:0.88em; color:#166534;">
+      ✅ <strong>SMTP strežnik je aktiven</strong> ({{ smtp_cfg.host }}:{{ smtp_cfg.port }}).
+    </div>
+    {% endif %}
+
+    <form method="post" action="/admin/smtp/save" class="stack">
+      <div style="display:grid; grid-template-columns:2fr 1fr; gap:10px;">
+        <label>SMTP Gostitelj (Host)
+          <input name="smtp_host" value="{{ smtp_cfg.host }}" placeholder="npr. mail.primer.si">
+        </label>
+        <label>Vrata (Port)
+          <input name="smtp_port" type="number" value="{{ smtp_cfg.port }}" placeholder="587">
+        </label>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <label>Uporabniško ime (SMTP User)
+          <input name="smtp_user" value="{{ smtp_cfg.user }}" placeholder="npr. obvestila@primer.si">
+        </label>
+        <label>Geslo (SMTP Password)
+          <input type="password" name="smtp_password" value="" placeholder="{% if smtp_cfg.password %}•••••••• (nespremenjeno){% else %}Vnesite geslo{% endif %}">
+        </label>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:10px;">
+        <label>E-pošta pošiljatelja (From)
+          <input type="email" name="smtp_from" value="{{ smtp_cfg.from_email }}" placeholder="knjiznica@primer.si">
+        </label>
+        <label>Ime pošiljatelja (From Name)
+          <input name="smtp_from_name" value="{{ smtp_cfg.from_name }}" placeholder="Moj knjižni kotiček">
+        </label>
+      </div>
+
+      <label>Varnost prenosa (Šifriranje)
+        <select name="smtp_security">
+          <option value="tls" {% if smtp_cfg.security == 'tls' %}selected{% endif %}>STARTTLS (vrata 587 - priporočeno)</option>
+          <option value="ssl" {% if smtp_cfg.security == 'ssl' %}selected{% endif %}>SSL / TLS (vrata 465)</option>
+          <option value="none" {% if smtp_cfg.security == 'none' %}selected{% endif %}>Brez šifriranja (lokalno / testno)</option>
+        </select>
+      </label>
+
+      <button class="btn primary">SHRANI SMTP NASTAVITVE</button>
+    </form>
+  </section>
+
+  <!-- Preizkus SMTP povezave -->
+  <section class="panel">
+    <h2>Preizkus SMTP povezave</h2>
+    <p style="font-size:0.9em; color:#64748b; margin-top:-8px; margin-bottom:14px;">
+      Pošljite testno sporočilo in preverite delovanje povezave s poštnim strežnikom (npr. NeoServ cPanel).
+    </p>
+
+    <form method="post" action="/admin/smtp/test" class="stack">
+      <label>Prejemnik testnega sporočila
+        <input type="email" name="test_email" required placeholder="uporabnik@primer.si" value="{{ request.state.user.email or '' }}">
+      </label>
+
+      <p style="font-size:0.85em; color:#64748b; margin:4px 0 12px; line-height:1.4;">
+        Test bo vzpostavil neposredno povezavo s SMTP strežnikom, preveril avtentikacijo in poslal potrditveno testno sporočilo s časovnim žigom. Rezultat bo izpisan na vrhu strani.
+      </p>
+
+      <button class="btn secondary">🚀 POŠLJI TESTNO SPOROČILO</button>
+    </form>
+  </section>
+</div>
+
+<!-- Revizijska sled (Audit Log) -->
+<section class="panel" style="margin-top:20px;">
+  <h2>Revizijska sled in sistemski dogodki (Zadnjih 50)</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Čas dogodka (UTC)</th>
+          <th>Uporabnik</th>
+          <th>Dejanje</th>
+          <th>Podrobnosti</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in audit_logs %}
+        <tr>
+          <td style="white-space:nowrap; font-size:0.85em; color:#64748b;">
+            {{ log.created_at.strftime('%d. %m. %Y %H:%M:%S') if log.created_at else '—' }}
+          </td>
+          <td>
+            {% if log.user %}
+              <strong>{{ log.user.display_name }}</strong> ({{ log.user.username }})
+            {% else %}
+              <em>Sistem / Neznano</em>
+            {% endif %}
+          </td>
+          <td>
+            <code style="background:#e2e8f0; padding:2px 6px; border-radius:4px; font-size:0.85em;">{{ log.action }}</code>
+          </td>
+          <td>{{ log.details or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">Revizijski dnevnik je prazen.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

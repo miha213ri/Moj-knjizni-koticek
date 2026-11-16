@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Moj uporabniški profil</h1>
+    <p>Upravljanje osebnih podatkov, gesla in varnostnih sej.</p>
+  </div>
+</div>
+
+{% if notice %}<div class="notice success-notice">{{ notice }}</div>{% endif %}
+{% if error %}<div class="notice error-notice">{{ error }}</div>{% endif %}
+
+<div class="two-col">
+  <!-- Osebni podatki -->
+  <section class="panel">
+    <h2>Osebni podatki</h2>
+    <form method="post" action="/profile/update" class="stack">
+      <label>Uporabniško ime
+        <input value="{{ db_user.username }}" disabled style="background:#f1f5f9; cursor:not-allowed;">
+        <small class="muted">Uporabniškega imena ni mogoče spreminjati.</small>
+      </label>
+      <label>Prikazno ime *
+        <input name="display_name" value="{{ db_user.display_name }}" required>
+      </label>
+      <label>E-poštni naslov
+        <input type="email" name="email" value="{{ db_user.email or '' }}" placeholder="npr. janez@primer.si">
+        <small class="muted">Za ponastavitev gesla in sistemska obvestila.</small>
+      </label>
+      <div style="margin: 10px 0;">
+        <strong>Vloga v sistemu:</strong> 
+        {% if db_user.role == 'ADMIN' %}<span class="badge badge-admin">Administrator (Popoln nadzor)</span>
+        {% elif db_user.role == 'EDITOR' %}<span class="badge badge-editor">Urednik knjižnice</span>
+        {% elif db_user.role == 'GUEST' %}<span class="badge badge-guest">Gost (Samo branje)</span>
+        {% else %}<span class="badge badge-user">Običajni uporabnik</span>{% endif %}
+      </div>
+      <div style="margin: 10px 0;">
+        <strong>Dodeljene knjižnice:</strong>
+        {% if db_user.role == 'ADMIN' %}
+          <span>Vse aktivne knjižnice</span>
+        {% else %}
+          <span>{{ db_user.locations|map(attribute='location.name')|join(', ') or 'Nobena lokacija ni dodeljena' }}</span>
+        {% endif %}
+      </div>
+      {% if db_user.last_login_at %}
+      <div style="font-size:0.85em; color:#64748b; margin-top:5px;">
+        Zadnja prijava: {{ db_user.last_login_at.strftime('%d. %m. %Y ob %H:%M') }} UTC
+      </div>
+      {% endif %}
+      <button class="btn primary" style="margin-top:15px;">SHRANI SPREMEMBE</button>
+    </form>
+  </section>
+
+  <!-- Sprememba gesla in seje -->
+  <div class="stack">
+    <section class="panel">
+      <h2>Sprememba gesla</h2>
+      <form method="post" action="/profile/password" class="stack">
+        <label>Trenutno geslo *
+          <input type="password" name="current_password" required>
+        </label>
+        <label>Novo geslo *
+          <input type="password" name="new_password" minlength="12" placeholder="••••••••••••" required>
+          <small class="muted">Najmanj 12 znakov.</small>
+        </label>
+        <label>Potrditev novega gesla *
+          <input type="password" name="confirm_password" minlength="12" placeholder="••••••••••••" required>
+        </label>
+        <button class="btn secondary">POSODOBI GESLO</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Varnostne seje</h2>
+      <p class="muted">Če ste se v knjižnico prijavili na tujem računalniku ali napravi, lahko z enim klikom takoj prekinete vse ostale seje.</p>
+      <form method="post" action="/profile/logout-all" onsubmit="return confirm('Ali res želite odjaviti vse ostale naprave?');">
+        <button class="btn danger full-width">ODJAVI ME IZ VSEH OSTALIH NAPRAV</button>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

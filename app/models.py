@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from sqlalchemy import (
     String, Integer, Text, Date, DateTime, Boolean, ForeignKey,
     UniqueConstraint, LargeBinary
@@ -10,13 +10,17 @@ from app.database import Base
 BLOB_TYPE = LargeBinary().with_variant(MEDIUMBLOB(), "mysql")
 
 
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class Location(Base):
     __tablename__ = "locations"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     address: Mapped[str | None] = mapped_column(String(250), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     books: Mapped[list["Book"]] = relationship(back_populates="location")
     rooms: Mapped[list["Room"]] = relationship(back_populates="location", cascade="all, delete-orphan")
 
@@ -26,10 +30,16 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(150))
+    email: Mapped[str | None] = mapped_column(String(180), unique=True, nullable=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(300))
-    role: Mapped[str] = mapped_column(String(20), default="USER", index=True)
+    role: Mapped[str] = mapped_column(String(20), default="USER", index=True)  # ADMIN, EDITOR, USER, GUEST
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    session_version: Mapped[int] = mapped_column(Integer, default=1)
+    failed_logins: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
     locations: Mapped[list["UserLocation"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     family_member: Mapped["FamilyMember | None"] = relationship(back_populates="user", uselist=False)
 
@@ -113,8 +123,8 @@ class Book(Base):
     room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id"), nullable=True)
     cabinet_id: Mapped[int | None] = mapped_column(ForeignKey("cabinets.id"), nullable=True)
     shelf_id: Mapped[int | None] = mapped_column(ForeignKey("shelves.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
     location: Mapped["Location"] = relationship(back_populates="books")
     genre: Mapped["Genre | None"] = relationship()
     collection: Mapped["Collection | None"] = relationship()
@@ -137,8 +147,8 @@ class CoverImage(Base):
     height: Mapped[int] = mapped_column(Integer, default=0)
     file_size: Mapped[int] = mapped_column(Integer, default=0)
     source_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
     book: Mapped["Book"] = relationship(back_populates="cover_image")
 
 
@@ -227,13 +237,34 @@ class Wishlist(Base):
     genre: Mapped["Genre | None"] = relationship()
 
 
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    user: Mapped["User"] = relationship()
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(String(250), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True, index=True)
-    action: Mapped[str] = mapped_column(String(100))
+    action: Mapped[str] = mapped_column(String(100), index=True)
     entity: Mapped[str | None] = mapped_column(String(100), nullable=True)
     entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    user: Mapped["User | None"] = relationship()
+    location: Mapped["Location | None"] = relationship()

@@ -22,7 +22,8 @@ data/images/
 # Dnevniki in začasne datoteke
 *.log
 stderr.log
-tmp/
+tmp/*
+!tmp/.gitkeep
 *.tmp
 *.bak
 

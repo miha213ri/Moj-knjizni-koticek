@@ -1,5 +1,5 @@
 """Database-native backup for the MariaDB deployment (cover BLOBs included)."""
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from io import BytesIO, TextIOWrapper
 import base64
@@ -49,7 +49,7 @@ def _snapshot():
             ]
     return {
         "format": "moj-knjizni-koticek-db-v1",
-        "created_at": datetime.utcnow().isoformat() + "Z",
+        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "tables": tables,
     }
 
@@ -97,7 +97,8 @@ def restore_full_backup(content: bytes, filename: str) -> None:
     metadata_tables = {table.name: table for table in Base.metadata.sorted_tables}
     supplied_tables = document["tables"]
     unknown = set(supplied_tables) - set(metadata_tables)
-    missing = set(metadata_tables) - set(supplied_tables)
+    optional_tables = {"audit_log", "password_resets", "app_settings"}
+    missing = set(metadata_tables) - set(supplied_tables) - optional_tables
     if unknown:
         raise ValueError("Varnostna kopija vsebuje neznane tabele: " + ", ".join(sorted(unknown)))
     if missing:
@@ -127,6 +128,14 @@ def restore_full_backup(content: bytes, filename: str) -> None:
                 rows = supplied_tables.get(table.name, [])
                 if rows:
                     decoded = [{key: _decode(value) for key, value in row.items()} for row in rows]
+                    if table.name == "users":
+                        for r in decoded:
+                            r.setdefault("role", "ADMIN" if r.get("is_admin") else "USER")
+                            r.setdefault("session_version", 1)
+                            r.setdefault("failed_logins", 0)
+                            r.setdefault("locked_until", None)
+                            r.setdefault("last_login_at", None)
+                            r.setdefault("email", None)
                     connection.execute(table.insert(), decoded)
             transaction.commit()
         except Exception:

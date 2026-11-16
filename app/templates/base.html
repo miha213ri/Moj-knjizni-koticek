@@ -1,15 +1,29 @@
 <!doctype html>
 <html lang="sl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ title }}</title><link rel="stylesheet" href="/static/style.css?v=1.0.4-layoutfix">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ title }}</title>
+<link rel="stylesheet" href="/static/style.css?v=1.0.5-upgrades">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><span class="brand-icon">📚</span><div><strong>MOJ KNJIŽNI KOTIČEK</strong><small>Skupna družinska knjižnica</small></div></div>
+  <div class="brand">
+    <a href="/books" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+      <span class="brand-icon">📚</span>
+      <div><strong>MOJ KNJIŽNI KOTIČEK</strong><small>Skupna družinska knjižnica</small></div>
+    </a>
+  </div>
   <div class="top-note">
     {% if user %}
-      <span>{{ user.display_name }}{% if is_admin %} · Administrator{% endif %}</span>
+      <a href="/profile" class="user-profile-badge" title="Uredi svoj profil in geslo">
+        👤 <strong>{{ user.display_name }}</strong>
+        {% if is_admin %}<span class="badge badge-admin">Skrbnik</span>
+        {% elif is_editor %}<span class="badge badge-editor">Urednik</span>
+        {% elif is_guest %}<span class="badge badge-guest">Gost</span>
+        {% else %}<span class="badge badge-user">Uporabnik</span>{% endif %}
+      </a>
       {% if locations|length > 1 %}
       <form method="post" action="/location/switch" class="location-switch">
         <select name="location_id" aria-label="Aktivna knjižnica" onchange="this.form.submit()">
@@ -22,13 +36,22 @@
   </div>
 </header>
 <nav class="nav">
-  <a href="/books">📖 Knjižnica</a><a href="/lookup">🔎 ISBN / iskanje</a>
-  <a href="/readings">✅ Prebrane knjige</a><a href="/wishes">⭐ Knjižne želje</a>
-  <a href="/loans">📤 Izposojene knjige</a><a href="/stats">📊 Statistika</a>
-  <a href="/borrowers">🤝 Izposojevalci</a><a href="/settings">⚙ Nastavitve</a>
+  <a href="/books">📖 Knjižnica</a>
+  {% if not is_guest %}<a href="/lookup">🔎 ISBN / iskanje</a>{% endif %}
+  <a href="/readings">✅ Prebrane knjige</a>
+  <a href="/wishes">⭐ Knjižne želje</a>
+  <a href="/loans">📤 Izposojene knjige</a>
+  <a href="/stats">📊 Statistika</a>
+  {% if not is_guest %}<a href="/borrowers">🤝 Izposojevalci</a>{% endif %}
+  <a href="/settings">⚙ Nastavitve</a>
   {% if is_admin %}<a href="/admin">🛡 Upravljanje</a>{% endif %}
 </nav>
 <main class="container">{% block content %}{% endblock %}</main>
-<footer>MOJ KNJIŽNI KOTIČEK <span>·</span> Strežniška izdaja 1.0</footer>
+<footer>
+  <div>MOJ KNJIŽNI KOTIČEK <span>·</span> Strežniška izdaja 1.0</div>
+  <div style="font-size: 0.8em; opacity: 0.75; margin-top: 6px;">
+    Ta aplikacija uporablja izključno tehnično nujne sejne piškotke za zagotavljanje varne prijave in seje skladno z GDPR.
+  </div>
+</footer>
 <script src="/static/app.js"></script>
 </body></html>

@@ -82,3 +82,14 @@ if APP_ENV == "production":
         )
 
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+
+# Sistemske nastavitve in e-pošta
+SMTP_HOST = get_setting("SMTP_HOST", "")
+SMTP_PORT = int(get_setting("SMTP_PORT", "587") or "587")
+SMTP_USER = get_setting("SMTP_USER", "")
+SMTP_PASSWORD = get_setting("SMTP_PASSWORD", "")
+SMTP_FROM = get_setting("SMTP_FROM", "") or SMTP_USER or "noreply@knjiznica.local"
+SMTP_TLS = get_setting("SMTP_TLS", "1").lower() not in ("0", "false", "no")
+
+REGISTRATION_ENABLED = get_setting("REGISTRATION_ENABLED", "0").lower() in ("1", "true", "yes")
+DEFAULT_LOAN_DAYS = int(get_setting("DEFAULT_LOAN_DAYS", "30") or "30")

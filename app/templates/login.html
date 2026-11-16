@@ -1,8 +1,49 @@
 <!doctype html>
-<html lang="sl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Prijava · Moj knjižni kotiček</title><link rel="stylesheet" href="/static/style.css"></head>
-<body><main class="container login-shell"><section class="panel login-panel">
-<div class="brand login-brand"><span class="brand-icon">📚</span><div><strong>MOJ KNJIŽNI KOTIČEK</strong><small>Skupna družinska knjižnica</small></div></div>
-<h1>Prijava</h1><p class="muted">Vpiši svoje uporabniško ime in geslo.</p>
-{% if error %}<div class="notice">{{ error }}</div>{% endif %}
-<form method="post" action="/login" class="stack"><input type="hidden" name="next" value="{{ next }}"><label>Uporabniško ime<input name="username" autocomplete="username" required autofocus></label><label>Geslo<input type="password" name="password" autocomplete="current-password" required></label><button class="btn primary">PRIJAVA</button></form>
-</section></main></body></html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Prijava · Moj knjižni kotiček</title>
+  <link rel="stylesheet" href="/static/style.css?v=1.0.5-upgrades">
+</head>
+<body>
+<main class="container login-shell">
+  <section class="panel login-panel">
+    <div class="brand login-brand">
+      <span class="brand-icon">📚</span>
+      <div><strong>MOJ KNJIŽNI KOTIČEK</strong><small>Skupna družinska knjižnica</small></div>
+    </div>
+    <h1>Prijava v knjižnico</h1>
+    <p class="muted">Vpišite svoje uporabniško ime ali e-poštni naslov ter geslo.</p>
+
+    {% if notice %}<div class="notice success-notice">{{ notice }}</div>{% endif %}
+    {% if error %}<div class="notice error-notice">{{ error }}</div>{% endif %}
+
+    <form method="post" action="/login" class="stack">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label>Uporabniško ime ali e-pošta
+        <input name="username" autocomplete="username" placeholder="npr. janez ali janez@primer.si" required autofocus>
+      </label>
+      <label>Geslo
+        <input type="password" name="password" autocomplete="current-password" placeholder="••••••••••••" required>
+      </label>
+      <div style="text-align: right; margin-top: -6px;">
+        <a href="/forgot-password" class="small-link">Pozabljeno geslo?</a>
+      </div>
+      <button class="btn primary full-width">PRIJAVA</button>
+    </form>
+
+    {% if registration_enabled %}
+    <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+      Še nimate računa? <a href="/register"><strong>Ustvarite račun</strong></a>
+    </div>
+    {% endif %}
+
+    <div style="font-size: 0.78em; color: #64748b; margin-top: 25px; text-align: center; line-height: 1.4;">
+      🔒 Varna povezava. Aplikacija uporablja izključno nujne sejne piškotke za zagotavljanje avtentikacije uporabnikov.
+    </div>
+  </section>
+</main>
+</body>
+</html>

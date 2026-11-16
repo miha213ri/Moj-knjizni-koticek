@@ -22,7 +22,7 @@ from app.services import (
     lookup_book, save_cover, save_uploaded_cover, new_inventory_no,
 )
 from app.route_helpers import render, date_value, redirect_notice, book_form_context
-from app.access import current_location_id, require_location, is_admin, allowed_location_ids
+from app.access import current_location_id, require_location, is_admin, allowed_location_ids, require_not_guest
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -239,6 +239,7 @@ def export_books_xlsx(
 
 @router.get("/books/new", response_class=HTMLResponse)
 def new_book(request: Request, db: Session = Depends(get_db)):
+    require_not_guest(request)
     return render(
         request, "book_form.html",
         **book_form_context(db, location_id=current_location_id(request)),
@@ -488,6 +489,7 @@ async def lookup(
     request: Request, q: str = "", target_book_id: int = 0,
     return_to: str = "/books/new", db: Session = Depends(get_db),
 ):
+    require_not_guest(request)
     results = await lookup_book(q) if q else []
     target_book = db.get(Book, target_book_id) if target_book_id else None
     if target_book_id and not target_book:
